@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# local scratch
+node_modules/
+__pycache__/
+*.log
+_tmp/
+
+# Scan pictures of Priya that the app does not use. Only avatars/prii_front_original.png is in the repo (the app needs it).
+avatars/*
+!avatars/prii_front_original.png

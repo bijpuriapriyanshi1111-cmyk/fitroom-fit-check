@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FitRoom Fit Check</title>
+<!-- The fonts load from Google Fonts. Offline, the page falls back to your system fonts and works the same. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Layout idea: a tailor's bench. Inputs on the left, the scan with a tape ruler on the right, the test log below. -->
+<div class="wrap">
+  <header>
+    <h1>FitRoom Fit Check</h1>
+    <p class="lede">Put in a body and a size chart. Get the size, which zones run tight or loose, and where the hem and sleeve land on the scan. Body numbers are in inches. Size charts can be in inches or centimetres.</p>
+    <div class="databar">
+      <button type="button" class="btn ghost" id="exportBtn">Export data (JSON file)</button>
+      <label class="btn ghost filebtn">Import data<input type="file" id="importFile" class="sr-only" accept="application/json,.json"></label>
+      <span class="stat" id="sstat"></span>
+    </div>
+  </header>
+  <div class="tape" aria-hidden="true"></div>
+
+  <noscript><p class="empty">This page needs JavaScript turned on.</p></noscript>
+
+  <div class="layout">
+    <div class="col">
+
+      <!-- ===== Body ===== -->
+      <section class="panel" aria-labelledby="h-body">
+        <h2 id="h-body">Body</h2>
+        <div class="people" id="people"></div>
+        <div class="row-ctl">
+          <label class="fld grow"><span class="lab">Name</span><input id="pname" type="text" autocomplete="off"></label>
+          <div class="fld"><span class="lab">Use numbers from</span><div class="seg" id="srcSeg"></div></div>
+          <button type="button" class="btn ghost" id="delPerson">Remove person</button>
+        </div>
+        <div class="bgrid" id="bgrid"></div>
+        <p class="note" id="bnote"></p>
+        <details>
+          <summary>Body lengths (optional)</summary>
+          <div class="two">
+            <label class="fld"><span class="lab">Shoulder to waist</span><input class="n" id="l-waistD" inputmode="decimal"></label>
+            <label class="fld"><span class="lab">Arm, shoulder to wrist</span><input class="n" id="l-arm" inputmode="decimal"></label>
+          </div>
+          <p class="note">Measure down the front from the high point of the shoulder, and along the arm from the shoulder point. These are only used for lines you have not marked on the scan. Left empty, they are estimated from height.</p>
+        </details>
+
+        <div class="pic-row">
+          <span class="lab">Scan picture</span>
+          <div class="actions">
+            <label class="btn ghost filebtn">Add or replace front view picture<input type="file" id="picFile" class="sr-only" accept="image/*"></label>
+            <button type="button" class="btn" id="calBtn">Calibrate</button>
+            <button type="button" class="btn ghost" id="picClear" hidden>Remove picture</button>
+          </div>
+          <p class="stat" id="picStat"></p>
+          <p class="note">Use a front view screenshot with the whole body showing, head to feet. It is shown exactly as it is, with its own background. Calibrate lets you click the head top, shoulder, bust, waist, hip, floor and wrist, so every line sits on the real scan.</p>
+        </div>
+      </section>
+
+      <!-- ===== Garment and size chart ===== -->
+      <section class="panel" aria-labelledby="h-gar">
+        <h2 id="h-gar">Garment and size chart</h2>
+        <div class="gtop">
+          <div class="row-ctl" style="margin:0">
+            <label class="fld grow"><span class="lab">Garment name</span><input id="gname" type="text" autocomplete="off" placeholder="e.g. H&amp;M ribbed top"></label>
+            <div class="fld grow">
+              <span class="linkhead"><label class="lab" for="glink">Link to the garment</label><a class="link" id="glinkOpen" target="_blank" rel="noopener noreferrer" hidden>Open link</a></span>
+              <input id="glink" type="text" inputmode="url" autocomplete="off" placeholder="Paste the product page link">
+            </div>
+          </div>
+          <div class="row-ctl" style="margin:0">
+            <div class="fld"><span class="lab">Type</span><div class="seg" id="typeSeg"></div></div>
+            <div class="fld"><span class="lab">Chart lists</span><div class="seg" id="chartSeg"></div></div>
+            <div class="fld"><span class="lab">Chart units</span><div class="seg" id="unitSeg"></div></div>
+            <div class="fld" id="fabField"><span class="lab">Fabric</span><div class="seg" id="fabSeg"></div></div>
+            <div class="fld" id="levelField" hidden><span class="lab">How much it stretches</span><div class="seg" id="levelSeg"></div></div>
+          </div>
+          <!-- The material text is used to guess the Fabric switch above (stretch / elastic waist / no stretch). -->
+          <div id="matBox">
+            <div class="two" style="margin-top:0">
+              <label class="fld"><span class="lab">Weave type (knitted, ribbed, woven...)</span><input id="gweave" type="text" autocomplete="off" placeholder="e.g. Knitted"></label>
+              <label class="fld"><span class="lab">Material</span><input id="gmat" type="text" autocomplete="off" placeholder="e.g. Cotton blend, or 95% cotton 5% elastane"></label>
+            </div>
+            <p class="note" id="levelNote" hidden></p>
+            <p class="note" id="matGuess"></p>
+            <p class="note" id="fabNote" hidden></p>
+          </div>
+        </div>
+        <!-- Paste a size chart copied from the product page. Nothing changes until "Use this chart" is pressed. -->
+        <details class="pastebox" id="pasteBox">
+          <summary>Paste a size chart instead of typing it</summary>
+          <p class="note">Copy the size chart table from the product page and paste it here. I read the sizes, the columns and the units, and show you what I understood. The chart below only changes when you press <b>Use this chart</b>.</p>
+          <textarea id="pasteText" rows="6" spellcheck="false" placeholder="Paste the table here, with its header row (Size, Bust, Waist...) and the size rows"></textarea>
+          <div id="pasteResult" aria-live="polite"></div>
+        </details>
+
+        <!-- A rough test: the garment's own photo, cut out and stretched to the chart's measurements, shown on the scan. -->
+        <details class="pastebox" id="imgBox">
+          <summary>Put the garment's photo on the figure (rough test)</summary>
+          <p class="note">Add a flat photo of just the garment on a plain background (a flat-lay or ghost-mannequin shot). A photo of a model wearing it will not cut out. The background is removed, then the garment is stretched sideways until it is as wide as the chart says at the bust, waist and hip, and placed on the scan from the shoulder to the hem. Click the sizes under Result to see each one.</p>
+          <div class="row-ctl" style="margin:8px 0 0">
+            <label class="btn ghost filebtn">Add garment photo<input type="file" id="imgFile" class="sr-only" accept="image/*"></label>
+            <button type="button" class="btn ghost" id="imgClear" hidden>Remove photo</button>
+          </div>
+          <div id="imgTools" hidden>
+            <div class="imgprev"><img id="imgPrev" alt="The garment after the background was removed"></div>
+            <p class="stat p-warn" id="imgWarn" hidden></p>
+            <label class="inl"><input type="checkbox" id="imgOn"> Show it on the figure</label>
+            <label class="inl" style="margin-left:14px"><input type="checkbox" id="imgWrap"> Wrap it round the body (curve and shading)</label>
+            <div class="two">
+              <label class="fld"><span class="lab">Cut-out strength: <span id="imgTolVal"></span></span><input type="range" id="imgTol" min="5" max="120" step="1"><span class="hint">Higher removes more of the background. Lower it if parts of the garment disappear.</span></label>
+              <label class="fld"><span class="lab">Width fix: <span id="imgWidthVal"></span></span><input type="range" id="imgWidth" min="60" max="140" step="1"><span class="hint">100% = as wide as the chart says. Nudge it if the sleeves or a wide hem make the width look wrong.</span></label>
+            </div>
+          </div>
+          <p class="stat" id="imgMsg" aria-live="polite"></p>
+        </details>
+
+        <div class="scroll"><table class="chart" id="chart"></table></div>
+        <div class="actions" style="margin-top:8px">
+          <button type="button" class="btn ghost" id="addRow">Add a size</button>
+          <button type="button" class="btn ghost" id="newChart">Start a new chart</button>
+        </div>
+        <p class="note" id="chartHint"></p>
+
+        <!-- Saved with this garment. Moves the hem on the figure, in the hem text and in the test log. -->
+        <div class="hemadj">
+          <div class="fld" id="lengthFromBox">
+            <span class="lab">Length is counted from</span>
+            <div class="seg" id="lengthFromSeg"></div>
+            <p class="note" style="margin:6px 0 0">Choose "Top edge" for tube tops, strapless tops and bandeaus: their length runs from the top edge of the garment, which the tool places about 2 in above your bust line.</p>
+          </div>
+          <span class="lab" style="display:block;margin-top:16px">Hem adjustment (optional)</span>
+          <div class="row-ctl" style="margin:8px 0 0">
+            <div class="fld"><span class="lab">The real hem sits</span><div class="seg" id="hemDirSeg"></div></div>
+            <label class="fld"><span class="lab">By <span id="hemUnit">(in)</span></span><input class="n" id="hemAmount" inputmode="decimal" placeholder="0" style="max-width:110px"></label>
+          </div>
+          <p class="note">Use this when the top sits higher or lower on you than the chart length suggests, for example a stretchy ribbed top that rides up. "Higher" means nearer your head. Leave it empty for no change.</p>
+        </div>
+        <details id="rulesBox">
+          <summary>Fit rules (garment measurements)</summary>
+          <div class="rules" id="rules"></div>
+          <p class="note">Room = garment minus body, plus the stretch allowance. Low stretch adds a flat number of inches everywhere, Medium and High add a percentage of the garment's own measurement (so a bigger size gets more), and an elastic or drawstring waist adds the flat number at the waist only. These are starting guesses. Change them when a verdict does not match real life.</p>
+        </details>
+      </section>
+    </div>
+
+    <div class="col">
+
+      <!-- ===== Result ===== -->
+      <section class="panel" aria-labelledby="h-res">
+        <h2 id="h-res">Result</h2>
+        <div class="pair" id="pair"></div>
+        <p class="compare" id="compare"></p>
+
+        <div class="chips" id="chips"></div>
+        <p class="stat">The yellow ring marks the predicted size. Click any size to see it on the figure.</p>
+
+        <!-- Three layers, bottom to top: tape, scan picture, lines. figure.js fills them in. -->
+        <figure>
+          <div class="figscroll"><!-- on a phone the figure keeps its size and scrolls sideways, so the labels stay readable -->
+            <svg id="fig" viewBox="0 0 640 680" role="img" aria-label="Front view of the scan with the fit lines drawn on it">
+              <g id="fig-ruler"></g>
+              <image id="fig-img" preserveAspectRatio="none" style="display:none"></image>
+              <image id="fig-garment" preserveAspectRatio="none" style="display:none"></image>
+              <g id="fig-lines"></g>
+            </svg>
+          </div>
+          <figcaption id="figcap"></figcaption>
+          <p class="stat" id="ovNote" hidden></p>
+        </figure>
+
+        <div class="zhead"><span class="lab">Size</span><strong id="zsize" class="mono"></strong><span class="pill p-none" id="zverdict"></span></div>
+        <div class="zones" id="zones"></div>
+        <div class="actions"><button type="button" class="btn" id="logBtn">Log this prediction</button><span class="stat" id="logMsg"></span></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ===== Prediction test log ===== -->
+  <section class="panel test" aria-labelledby="h-test">
+    <h2 id="h-test">Prediction test</h2>
+    <p class="note" style="margin-top:0">Log the prediction before you look at the tag. Then try the garment on and fill in what really happened. For range charts: Runs small counts as Tight, Your size as Fitted, and Runs big as Loose.</p>
+    <div class="sum" id="logSum"></div>
+    <div class="scroll" id="logWrap"></div>
+    <div class="actions"><button type="button" class="btn ghost" id="copyBtn">Copy log as a table</button><span class="stat" id="copyStat"></span></div>
+    <textarea id="copyBox" hidden readonly></textarea>
+  </section>
+</div>
+
+<!-- ===== Calibration dialog: click on the scan to mark the points ===== -->
+<dialog id="calDlg" aria-labelledby="calTitle">
+  <div class="cal">
+    <div class="cal-side">
+      <h2 id="calTitle">Calibrate <span id="calName"></span></h2>
+      <p class="note" style="margin-top:0">Pick a point in the list, then click it on the picture. After each click the next missing point is selected for you.</p>
+      <ol class="marklist" id="calList"></ol>
+      <p class="hintbox" id="calHint"></p>
+      <p class="note" id="calMsg"></p>
+      <div class="actions">
+        <button type="button" class="btn" id="calDone">Done</button>
+        <button type="button" class="btn ghost" id="calClear">Clear all marks</button>
+      </div>
+    </div>
+    <div class="cal-pic">
+      <svg id="calSvg" role="img" aria-label="The scan picture. Click to place the selected mark.">
+        <image id="cal-img" x="0" y="0" preserveAspectRatio="none"></image>
+        <g id="cal-marks"></g>
+        <g id="cal-guide" pointer-events="none"></g>
+      </svg>
+    </div>
+  </div>
+</dialog>
+
+<!-- Plain scripts, no build step. The order matters: each file uses the ones above it. -->
+<script src="js/util.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/geometry.js"></script>
+<script src="js/fit.js"></script>
+<script src="js/material.js"></script>
+<script src="js/chartparse.js"></script>
+<script src="js/garmentimage.js"></script>
+<script src="js/figure.js"></script>
+<script src="js/calibrate.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
